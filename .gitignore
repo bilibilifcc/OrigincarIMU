@@ -1,0 +1,6 @@
+.vscode/
+build/
+Listings/
+DebugConfig/
+ProjectSTM32F407/RTE/
+Objects/

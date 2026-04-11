@@ -1,0 +1,11 @@
+2026-04-11 21:01:15,149 - [INFO] -  Config path: D:\Codes\STM32\STM32F103\OriginCarIMU\config.json
+2026-04-11 21:01:15,149 - [INFO] -  Log path: D:\Codes\STM32\STM32F103\OriginCarIMU\run.log
+2026-04-11 21:01:15,150 - [INFO] -  loading config from D:\Codes\STM32\STM32F103\OriginCarIMU\config.json
+2026-04-11 21:01:15,150 - [INFO] -  loading config complete
+2026-04-11 21:01:18,818 - [INFO] -  init main window
+2026-04-11 21:01:22,326 - [INFO] -  icon path: D:/anaconda/Lib/site-packages/COMTool/assets/logo.png
+2026-04-11 21:01:22,815 - [INFO] -  init main window complete
+2026-04-11 21:01:23,324 - [INFO] -  load plugin items complete
+2026-04-11 21:01:23,325 - [INFO] -  data path:D:/anaconda/Lib/site-packages/COMTool
+2026-04-11 21:01:24,492 - [INFO] -  Already latest version!
+2026-04-11 21:42:56,702 - [INFO] -  Close window

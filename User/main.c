@@ -6,6 +6,17 @@
 #include "delay.h"
 
 #define CONFIG_DEBUG_MODE
+#define TASK_NUM 		3
+
+typedef struct {
+	uint32_t period;		// ms
+	uint32_t now_time;	// ms
+	void (*task_func)(void);
+} task_t;
+
+
+void Scheduler_Run(task_t *, size_t task_num);		//
+void Scheduler_Tick(task_t *, size_t task_num);
 
 static uint32_t time_stamp = 0;		// ms
 static uint8_t time_update = 0;
@@ -21,6 +32,40 @@ static BMI088_RawData bias;
 
 void BMI088_Cali(void);
 void BMI088_Rowpro(BMI088_RawData*);
+
+
+void task_2hz(void);
+void task_10hz(void);
+void task_100hz(void);
+
+task_t tasks[TASK_NUM] = {
+	{500,0,task_2hz},
+	{100,0,task_10hz},
+	{10,0,task_100hz}
+};
+
+void task_2hz(void)
+{
+	if(GPIO_ReadOutputDataBit(GPIOC,GPIO_Pin_13))
+	{
+		GPIO_ResetBits(GPIOC, GPIO_Pin_13);
+	}else
+	{
+		GPIO_SetBits(GPIOC, GPIO_Pin_13);
+	}
+}
+void task_10hz(void)
+{
+	BMI088_ReadAll(&raw);
+	// BMI088_Rowpro(&raw);
+	#ifdef CONFIG_DEBUG_MODE
+	printf("RAW:%6d,%6d,%6d,%6d,%6d,%6d\r\n",
+		raw.acc_x, raw.acc_y, raw.acc_z,
+		raw.gyro_x, raw.gyro_y, raw.gyro_z);
+	#endif
+}
+void task_100hz(void)
+{}
 
 int main(void)
 {
@@ -41,7 +86,6 @@ int main(void)
 	
 	// BMI088_Cali();
 	
-	
 	#ifdef CONFIG_DEBUG_MODE
 	printf("BMI088 Init 0K!!");
 	#endif	
@@ -49,36 +93,8 @@ int main(void)
 	TIM_Cmd(TIM2, ENABLE); // 开启定时器
 	while (1)
 	{
-		if(time_update)
-		{
-			time_update = 0;
-			
-			// 2hz
-			if(time_stamp % 500 == 0)
-			{
-				if(GPIO_ReadOutputDataBit(GPIOC,GPIO_Pin_13))
-				{
-					GPIO_ResetBits(GPIOC,GPIO_Pin_13);
-				}else
-				{
-					GPIO_SetBits(GPIOC,GPIO_Pin_13);
-				}
-
-			}
-			
-			// 100hz
-			if(time_stamp % 100 == 0)
-			{
-				BMI088_ReadAll(&raw);
-				// BMI088_Rowpro(&raw);
-				#ifdef CONFIG_DEBUG_MODE
-				printf("RAW:%6d,%6d,%6d,%6d,%6d,%6d\r\n",
-					raw.acc_x, raw.acc_y, raw.acc_z,
-					raw.gyro_x, raw.gyro_y, raw.gyro_z);
-				#endif
-			}
-			
-		}
+		
+		Scheduler_Run(tasks,TASK_NUM);
 		
 	}
 }
@@ -89,8 +105,7 @@ void TIM2_IRQHandler(void)
 	{
 		TIM_ClearITPendingBit(TIM2, TIM_IT_Update);
 		
-		time_update = 1;
-		time_stamp++;
+		Scheduler_Tick(tasks,TASK_NUM);
 	}
 }
 
@@ -148,4 +163,36 @@ void BMI088_Rowpro(BMI088_RawData* raw)
 	raw->gyro_y -= bias.gyro_y;
 	raw->gyro_z -= bias.gyro_z;
 	
+}
+
+void Scheduler_Run(task_t *tasks, size_t task_num)
+{
+	size_t i;
+	if(!task_num)
+	{
+		return;
+	}
+	
+	for(i=0;i<task_num;i++)
+	{
+		if(tasks[i].now_time > tasks[i].period)
+		{
+			tasks[i].now_time = 0;
+			tasks[i].task_func();	// 运行
+		}
+	}
+	
+}
+void Scheduler_Tick(task_t *tasks, size_t task_num)	// 
+{
+	size_t i;
+	if(!task_num)
+	{
+		return;
+	}
+	
+	for(i=0;i<task_num;i++)
+	{
+		tasks[i].now_time++;
+	}
 }

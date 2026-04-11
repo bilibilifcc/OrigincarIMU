@@ -6,6 +6,7 @@
 
 void Debug_UART_Init(uint32_t baudrate);
 void Debug_UART_SendString(char *str);
+void Debug_UART_SendArr(uint8_t *arr, size_t num);
 void Debug_UART_SendHex(uint8_t data);
 int fputc(int ch, FILE *f);  /* 重定向printf */
 

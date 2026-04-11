@@ -7,7 +7,7 @@
 #define BSP_I2C_PORT         GPIOB
 #define BSP_I2C_SCL_PIN      GPIO_Pin_6
 #define BSP_I2C_SDA_PIN      GPIO_Pin_7
-#define BSP_I2C_SPEED        400000  /* 400kHz，BMI088支持快速模式 */
+#define BSP_I2C_SPEED        100000  /* 400kHz，BMI088支持快速模式 */
 #define BSP_I2C_TIMEOUT      10000
 
 void BSP_I2C_Init(void);

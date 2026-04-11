@@ -35,6 +35,16 @@ void Debug_UART_SendString(char *str) {
     }
 }
 
+void Debug_UART_SendArr(uint8_t *arr, size_t num) {
+		size_t i = 0;
+		for(i=0;i<num;i++)
+		{
+				while (USART_GetFlagStatus(USART1, USART_FLAG_TXE) == RESET);
+				USART_SendData(USART1, arr[i]);
+		}
+
+}
+
 void Debug_UART_SendHex(uint8_t data) {
     char hex[3];
     hex[0] = "0123456789ABCDEF"[data >> 4];

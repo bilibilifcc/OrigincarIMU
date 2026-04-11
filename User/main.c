@@ -5,7 +5,9 @@
 #include "bmi088.h"
 #include "delay.h"
 
-#define CONFIG_DEBUG_MODE
+//#define CONFIG_DEBUG_MODE
+
+// 定时调度器**********************************
 #define TASK_NUM 		3
 
 typedef struct {
@@ -14,13 +16,11 @@ typedef struct {
 	void (*task_func)(void);
 } task_t;
 
-
 void Scheduler_Run(task_t *, size_t task_num);		//
 void Scheduler_Tick(task_t *, size_t task_num);
+// 定时调度器*************************************
 
-static uint32_t time_stamp = 0;		// ms
-static uint8_t time_update = 0;
-
+// BMI088驱动*************************************
 static BMI088_RawData raw;
 static float acc_g[3], gyro_dps[3];
 
@@ -32,16 +32,26 @@ static BMI088_RawData bias;
 
 void BMI088_Cali(void);
 void BMI088_Rowpro(BMI088_RawData*);
+// BMI088驱动*************************************
 
+// 串口发送数据*******************************
+#define HEADER 0xFF
+
+uint8_t tx_buffer[128];
+
+uint8_t CheckSum(uint8_t *Buf, uint8_t Len); // 校验和
+size_t data_pack(void);		// 打包数据
+
+// 串口发送数据*******************************
 
 void task_2hz(void);
 void task_10hz(void);
-void task_100hz(void);
+void task_50hz(void);
 
 task_t tasks[TASK_NUM] = {
 	{500,0,task_2hz},
 	{100,0,task_10hz},
-	{10,0,task_100hz}
+	{20,0,task_50hz}
 };
 
 void task_2hz(void)
@@ -56,24 +66,32 @@ void task_2hz(void)
 }
 void task_10hz(void)
 {
-	BMI088_ReadAll(&raw);
 	// BMI088_Rowpro(&raw);
+//	#ifdef CONFIG_DEBUG_MODE
+//	printf("RAW:%6d,%6d,%6d,%6d,%6d,%6d\r\n",
+//		raw.acc_x, raw.acc_y, raw.acc_z,
+//		raw.gyro_x, raw.gyro_y, raw.gyro_z);
+//	#endif
+}
+void task_50hz(void)
+{
+	BMI088_ReadAll(&raw);
 	#ifdef CONFIG_DEBUG_MODE
-	printf("RAW:%6d,%6d,%6d,%6d,%6d,%6d\r\n",
-		raw.acc_x, raw.acc_y, raw.acc_z,
-		raw.gyro_x, raw.gyro_y, raw.gyro_z);
+	
+	Debug_UART_SendArr(tx_buffer,data_pack());
+	printf("\r\n");
+	#endif
+	#ifndef CONFIG_DEBUG_MODE
+	Debug_UART_SendArr(tx_buffer,data_pack());
 	#endif
 }
-void task_100hz(void)
-{}
-
 int main(void)
 {
 	Delay_ms(50);
 	Timer2_Init();
 	LED_Init();
 	BSP_I2C_Init();
-	Debug_UART_Init(115200);
+	Debug_UART_Init(921600);
 	
 	if(!BMI088_Init())
 	{
@@ -93,7 +111,6 @@ int main(void)
 	TIM_Cmd(TIM2, ENABLE); // 开启定时器
 	while (1)
 	{
-		
 		Scheduler_Run(tasks,TASK_NUM);
 		
 	}
@@ -175,7 +192,7 @@ void Scheduler_Run(task_t *tasks, size_t task_num)
 	
 	for(i=0;i<task_num;i++)
 	{
-		if(tasks[i].now_time > tasks[i].period)
+		if(tasks[i].now_time >= tasks[i].period)
 		{
 			tasks[i].now_time = 0;
 			tasks[i].task_func();	// 运行
@@ -195,4 +212,40 @@ void Scheduler_Tick(task_t *tasks, size_t task_num)	//
 	{
 		tasks[i].now_time++;
 	}
+}
+
+uint8_t CheckSum(uint8_t *Buf, uint8_t Len) {
+	uint8_t sum = 0;
+	for (uint8_t i = 0; i < Len; i++) {
+		sum += Buf[i];
+	}
+	return sum;
+}
+
+size_t data_pack(void)
+{
+	size_t all = 0;
+	uint8_t i = 0;
+	tx_buffer[all++] = HEADER;
+	all++;
+	// 
+	tx_buffer[all++] = raw.acc_x >> 8;
+	tx_buffer[all++] = raw.acc_x;
+	tx_buffer[all++] = raw.acc_y >> 8;
+	tx_buffer[all++] = raw.acc_y;
+	tx_buffer[all++] = raw.acc_z >> 8;
+	tx_buffer[all++] = raw.acc_z;
+	
+	tx_buffer[all++] = raw.gyro_x >> 8;
+	tx_buffer[all++] = raw.gyro_x;
+	tx_buffer[all++] = raw.gyro_y >> 8;
+	tx_buffer[all++] = raw.gyro_y;
+	tx_buffer[all++] = raw.gyro_z >> 8;
+	tx_buffer[all++] = raw.gyro_z;
+	
+	tx_buffer[1] = all-2;		// 数据的个数，不包含包头、个数位、校验和位
+	
+	tx_buffer[all++] = CheckSum(tx_buffer+1,all-1);// 校验和位，校验不含包头
+	
+	return all; // 总位数
 }

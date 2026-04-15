@@ -5,7 +5,7 @@
 #include "bmi088.h"
 #include "delay.h"
 
-//#define CONFIG_DEBUG_MODE
+// #define CONFIG_DEBUG_MODE
 
 // 定时调度器**********************************
 #define TASK_NUM 		3
@@ -26,7 +26,7 @@ static float acc_g[3], gyro_dps[3];
 
 // 上电校准
 #define CALI_SAMPLES 50
-#define CALI_FREQ			100 // ms
+#define CALI_PERIOD			100 // ms
 static BMI088_RawData calibra[CALI_SAMPLES];
 static BMI088_RawData bias;
 
@@ -67,19 +67,20 @@ void task_2hz(void)
 void task_10hz(void)
 {
 	// BMI088_Rowpro(&raw);
-//	#ifdef CONFIG_DEBUG_MODE
-//	printf("RAW:%6d,%6d,%6d,%6d,%6d,%6d\r\n",
-//		raw.acc_x, raw.acc_y, raw.acc_z,
-//		raw.gyro_x, raw.gyro_y, raw.gyro_z);
-//	#endif
+	#ifdef CONFIG_DEBUG_MODE
+	printf("RAW:%6d,%6d,%6d,%6d,%6d,%6d\r\n",
+		raw.acc_x, raw.acc_y, raw.acc_z,
+		raw.gyro_x, raw.gyro_y, raw.gyro_z);
+	#endif
 }
 void task_50hz(void)
 {
 	BMI088_ReadAll(&raw);
+	BMI088_Rowpro(&raw);
 	#ifdef CONFIG_DEBUG_MODE
 	
-	Debug_UART_SendArr(tx_buffer,data_pack());
-	printf("\r\n");
+	//Debug_UART_SendArr(tx_buffer,data_pack());
+	//printf("\r\n");
 	#endif
 	#ifndef CONFIG_DEBUG_MODE
 	Debug_UART_SendArr(tx_buffer,data_pack());
@@ -87,7 +88,7 @@ void task_50hz(void)
 }
 int main(void)
 {
-	Delay_ms(50);
+	Delay_ms(1000);
 	Timer2_Init();
 	LED_Init();
 	BSP_I2C_Init();
@@ -102,7 +103,7 @@ int main(void)
 		
 	}
 	
-	// BMI088_Cali();
+	BMI088_Cali();
 	
 	#ifdef CONFIG_DEBUG_MODE
 	printf("BMI088 Init 0K!!");
@@ -131,10 +132,18 @@ void BMI088_Cali(void)
 	int i = 0;
 	BMI088_RawData sum;
 	TIM_Cmd(TIM2, DISABLE); // 开启定时器
+	#ifdef CONFIG_DEBUG_MODE
+	printf("Start Cli!!\r\n");
+	
+	#endif
 	
 	for(i=0;i<CALI_SAMPLES;i++)
 	{
 		BMI088_ReadAll(&calibra[i]);
+		sum.gyro_x += calibra[i].gyro_x;
+		sum.gyro_y += calibra[i].gyro_y;
+		sum.gyro_z += calibra[i].gyro_z;
+
 		
 		if(GPIO_ReadOutputDataBit(GPIOC,GPIO_Pin_13))
 		{
@@ -143,38 +152,42 @@ void BMI088_Cali(void)
 		{
 			GPIO_SetBits(GPIOC,GPIO_Pin_13);
 		}
-		Delay_ms(CALI_FREQ);
+		Delay_ms(CALI_PERIOD);
 
 	}
 	
 	
-	for(i=0;i<CALI_SAMPLES;i++)
-	{
-		sum.acc_x += calibra[i].acc_x;
-		sum.acc_y += calibra[i].acc_y;
-		sum.acc_z += calibra[i].acc_z;
+	// for(i=0;i<CALI_SAMPLES;i++)
+	//{
+//		sum.acc_x += calibra[i].acc_x;
+//		sum.acc_y += calibra[i].acc_y;
+//		sum.acc_z += calibra[i].acc_z;
 		
-		sum.gyro_x += calibra[i].gyro_x;
-		sum.gyro_y += calibra[i].gyro_y;
-		sum.gyro_z += calibra[i].gyro_z;
-	}
+	//}
 	
-	bias.acc_x = sum.acc_x / CALI_SAMPLES;
-	bias.acc_y = sum.acc_y / CALI_SAMPLES;
-	bias.acc_z = sum.acc_z / CALI_SAMPLES;
+//	bias.acc_x = sum.acc_x / CALI_SAMPLES;
+//	bias.acc_y = sum.acc_y / CALI_SAMPLES;
+//	bias.acc_z = sum.acc_z / CALI_SAMPLES;
 
 	bias.gyro_x = sum.gyro_x / CALI_SAMPLES;
 	bias.gyro_y = sum.gyro_y / CALI_SAMPLES;
 	bias.gyro_z = sum.gyro_z / CALI_SAMPLES;
 	
+	#ifdef CONFIG_DEBUG_MODE
+	printf("Cli Over!!\r\n");
+	
+	#endif
+	
 	TIM_Cmd(TIM2, ENABLE); // 开启定时器
+	
+
 }
 
 void BMI088_Rowpro(BMI088_RawData* raw)
 {
-	raw->acc_x -= bias.acc_x;
-	raw->acc_y -= bias.acc_y;
-	raw->acc_z -= bias.acc_z;
+//	raw->acc_x -= bias.acc_x;
+//	raw->acc_y -= bias.acc_y;
+//	raw->acc_z -= bias.acc_z;
 	
 	raw->gyro_x -= bias.gyro_x;
 	raw->gyro_y -= bias.gyro_y;
